@@ -482,57 +482,6 @@ const RentCarModal = ({ isOpen, onClose, showMessage }) => {
                         Whatsapp
                     </a>
                 </div>
-
-                <div className="my-8 flex items-center before:flex-1 before:border-t before:border-gray-300 before:mt-0.5 after:flex-1 after:border-t after:border-gray-300 after:mt-0.5">
-                    <p className="text-center font-semibold mx-4 text-gray-500">o</p>
-                </div>
-
-                {/* Formulario de Contacto */}
-                <h3 className="text-xl font-bold mb-4 text-center text-gray-800">Contáctanos</h3>
-                <form onSubmit={handleFormSubmit} className="space-y-4">
-                    <input
-                        type="text"
-                        name="name"
-                        placeholder="Nombre completo"
-                        value={contactForm.name}
-                        onChange={handleFormChange}
-                        className="w-full p-3 rounded-lg border-gray-300 shadow-sm focus:border-blue-500 focus:ring focus:ring-blue-200 focus:ring-opacity-50"
-                        required
-                    />
-                    <input
-                        type="email"
-                        name="email"
-                        placeholder="Correo electrónico"
-                        value={contactForm.email}
-                        onChange={handleFormChange}
-                        className="w-full p-3 rounded-lg border-gray-300 shadow-sm focus:border-blue-500 focus:ring focus:ring-blue-200 focus:ring-opacity-50"
-                        required
-                    />
-                    <input
-                        type="tel"
-                        name="phone"
-                        placeholder="Teléfono (ej. 9991234567)"
-                        value={contactForm.phone}
-                        onChange={handleFormChange}
-                        className="w-full p-3 rounded-lg border-gray-300 shadow-sm focus:border-blue-500 focus:ring focus:ring-blue-200 focus:ring-opacity-50"
-                        required
-                    />
-                    <textarea
-                        name="message"
-                        placeholder="Escribe tu comentario"
-                        rows="4"
-                        value={contactForm.message}
-                        onChange={handleFormChange}
-                        className="w-full p-3 rounded-lg border-gray-300 shadow-sm focus:border-blue-500 focus:ring focus:ring-blue-200 focus:ring-opacity-50"
-                        required
-                    ></textarea>
-                    <button
-                        type="submit"
-                        className="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-6 rounded-lg transition duration-150 ease-in-out shadow-md"
-                    >
-                        Enviar
-                    </button>
-                </form>
             </div>
         </div>
     );
