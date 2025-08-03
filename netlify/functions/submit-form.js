@@ -1,16 +1,13 @@
-// netlify/functions/submit-form.js
-
 const admin = require('firebase-admin');
 const { getFirestore } = require('firebase-admin/firestore');
 
-// Carga las variables de entorno de Netlify
-const { FIREBASE_SERVICE_ACCOUNT } = process.env;
+const { FIREBASE_SERVICE_ACCOUNT_KEY } = process.env;
 
 let db;
 
 if (!admin.apps.length) {
     try {
-        const serviceAccount = JSON.parse(Buffer.from(FIREBASE_SERVICE_ACCOUNT, 'base64').toString());
+        const serviceAccount = JSON.parse(FIREBASE_SERVICE_ACCOUNT_KEY);
 
         admin.initializeApp({
             credential: admin.credential.cert(serviceAccount)
