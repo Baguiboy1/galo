@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { initializeApp } from 'firebase/app';
 import { getAuth, signInWithCustomToken, signInAnonymously, onAuthStateChanged } from 'firebase/auth';
-import { getFirestore, collection, doc, setDoc, updateDoc, deleteDoc, onSnapshot } from 'firebase/firestore';
+import { getFirestore, collection, doc, setDoc, updateDoc, deleteDoc, onSnapshot, deleteDoc as deleteFirestoreDoc } from 'firebase/firestore';
 import { getStorage, ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 import { v4 as uuidv4 } from 'uuid';
 
@@ -319,7 +319,7 @@ const ProductForm = ({ initialData, onSave, onCancel, buttonText }) => {
                     />
                 </div>
                 <div>
-                    <label className="block text-gray-700 text-sm font-bold mb-2" htmlFor="product-description">Descripción</label>
+                    <label className="block text-sm font-bold mb-2" htmlFor="product-description">Descripción</label>
                     <textarea
                         id="product-description"
                         name="description"
@@ -437,8 +437,8 @@ const RentCarModal = ({ isOpen, onClose }) => {
     if (!isOpen) return null;
 
     return (
-        <div className="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full flex items-center justify-center z-[70]">
-            <div className="relative p-8 bg-white w-full max-w-sm m-auto flex-col flex rounded-xl shadow-2xl">
+        <div className="fixed inset-0 bg-gray-600 bg-opacity-50 flex items-center justify-center z-[70] p-4">
+            <div className="relative p-8 bg-white w-full max-w-sm m-auto flex-col flex rounded-xl shadow-2xl overflow-y-auto max-h-full">
                 <button
                     onClick={onClose}
                     className="absolute top-4 right-4 text-gray-500 hover:text-gray-800 transition-colors"
@@ -455,8 +455,7 @@ const RentCarModal = ({ isOpen, onClose }) => {
                         rel="noopener noreferrer"
                         className="flex items-center justify-center space-x-2 bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-6 rounded-lg transition duration-150 ease-in-out shadow-md"
                     >
-                        <FacebookIcon />
-                        <span>Facebook</span>
+                        Facebook
                     </a>
 
                     {/* Botón de Whatsapp */}
@@ -466,8 +465,7 @@ const RentCarModal = ({ isOpen, onClose }) => {
                         rel="noopener noreferrer"
                         className="flex items-center justify-center space-x-2 bg-green-500 hover:bg-green-600 text-white font-bold py-3 px-6 rounded-lg transition duration-150 ease-in-out shadow-md"
                     >
-                        <WhatsappIcon />
-                        <span>Whatsapp</span>
+                        Whatsapp
                     </a>
                 </div>
 
@@ -526,7 +524,550 @@ const RentCarModal = ({ isOpen, onClose }) => {
     );
 };
 
-// Componente principal de la aplicación
+// Componentes del panel de administración
+const CreateContent = ({ onSavePost, onSaveProduct, editingItem, editingType, setEditingItem, setEditingType }) => (
+    <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+        {editingItem && editingType === 'post' ? (
+            <PostForm 
+                initialData={editingItem}
+                onSave={onSavePost}
+                onCancel={() => { setEditingItem(null); setEditingType(null); }}
+                buttonText="Actualizar Post"
+            />
+        ) : (
+            <PostForm
+                onSave={onSavePost}
+                onCancel={null}
+                buttonText="Publicar Post"
+            />
+        )}
+        {editingItem && editingType === 'product' ? (
+            <ProductForm
+                initialData={editingItem}
+                onSave={onSaveProduct}
+                onCancel={() => { setEditingItem(null); setEditingType(null); }}
+                buttonText="Actualizar Producto"
+            />
+        ) : (
+            <ProductForm
+                onSave={onSaveProduct}
+                onCancel={null}
+                buttonText="Agregar Producto"
+            />
+        )}
+    </div>
+);
+
+const ManageContent = ({ posts, products, onEditPost, onEditProduct, onDeletePost, onDeleteProduct }) => (
+    <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+        <div className="bg-white p-6 rounded-xl shadow-lg">
+            <h2 className="text-3xl font-bold mb-6 text-blue-500">Gestionar Posts</h2>
+            <div className="space-y-4">
+                {posts.length === 0 ? (
+                    <p className="text-gray-500">No hay posts creados.</p>
+                ) : (
+                    posts.map(post => (
+                        <div key={post.id} className="p-4 border-b border-gray-200 flex justify-between items-center hover:bg-blue-50 transition-colors duration-150 ease-in-out">
+                            <span className="text-gray-700 font-semibold">{post.title}</span>
+                            <div className="flex space-x-2">
+                                <button
+                                    onClick={() => onEditPost(post)}
+                                    className="bg-blue-500 hover:bg-blue-600 text-white p-2 rounded-lg transition-colors"
+                                    title="Editar"
+                                >
+                                    <PencilIcon />
+                                </button>
+                                <button
+                                    onClick={() => onDeletePost(post.id)}
+                                    className="bg-red-500 hover:bg-red-600 text-white p-2 rounded-lg transition-colors"
+                                    title="Eliminar"
+                                >
+                                    <TrashIcon />
+                                </button>
+                            </div>
+                        </div>
+                    ))
+                )}
+            </div>
+        </div>
+        <div className="bg-white p-6 rounded-xl shadow-lg">
+            <h2 className="text-3xl font-bold mb-6 text-red-500">Gestionar Productos</h2>
+            <div className="space-y-4">
+                {products.length === 0 ? (
+                    <p className="text-gray-500">No hay productos creados.</p>
+                ) : (
+                    products.map(product => (
+                        <div key={product.id} className="p-4 border-b border-gray-200 flex justify-between items-center hover:bg-red-50 transition-colors duration-150 ease-in-out">
+                            <span className="text-gray-700 font-semibold">{product.name}</span>
+                            <div className="flex space-x-2">
+                                <button
+                                    onClick={() => onEditProduct(product)}
+                                    className="bg-red-500 hover:bg-red-600 text-white p-2 rounded-lg transition-colors"
+                                    title="Editar"
+                                >
+                                    <PencilIcon />
+                                </button>
+                                <button
+                                    onClick={() => onDeleteProduct(product.id)}
+                                    className="bg-red-500 hover:bg-red-600 text-white p-2 rounded-lg transition-colors"
+                                    title="Eliminar"
+                                >
+                                    <TrashIcon />
+                                </button>
+                            </div>
+                        </div>
+                    ))
+                )}
+            </div>
+        </div>
+    </div>
+);
+
+const AdminPanel = ({ posts, products, handleAddPost, handleEditPost, handleDeletePost, handleAddProduct, handleEditProduct, handleDeleteProduct }) => {
+    const hardcodedAdminPassword = '123456';
+    const [adminPassword, setAdminPassword] = useState('');
+    const [loginError, setLoginError] = useState('');
+    const [adminPanelPage, setAdminPanelPage] = useState('create');
+    const [editingItem, setEditingItem] = useState(null);
+    const [editingType, setEditingType] = useState(null);
+    const [isAdmin, setIsAdmin] = useState(false);
+    
+    const handleLogin = (e) => {
+        e.preventDefault();
+        if (adminPassword === hardcodedAdminPassword) {
+            setIsAdmin(true);
+            setLoginError('');
+        } else {
+            setLoginError('Contraseña incorrecta');
+        }
+        setAdminPassword('');
+    };
+    
+    const onSavePost = async (data) => {
+        if (editingItem) {
+            await handleEditPost(data, editingItem);
+            setEditingItem(null);
+            setEditingType(null);
+        } else {
+            await handleAddPost(data);
+        }
+    };
+
+    const onEditPost = (post) => {
+        setEditingItem(post);
+        setEditingType('post');
+        setAdminPanelPage('create');
+    };
+    
+    const onSaveProduct = async (data) => {
+        if (editingItem) {
+            await handleEditProduct(data, editingItem);
+            setEditingItem(null);
+            setEditingType(null);
+        } else {
+            await handleAddProduct(data);
+        }
+    };
+    
+    const onEditProduct = (product) => {
+        setEditingItem(product);
+        setEditingType('product');
+        setAdminPanelPage('create');
+    };
+
+    if (!isAdmin) {
+        return (
+            <div className="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full flex items-center justify-center z-50">
+                <div className="bg-white p-8 rounded-lg shadow-2xl max-w-sm w-full relative">
+                    <h2 className="text-3xl font-bold mb-6 text-center text-gray-800">Acceso de Administrador</h2>
+                    <form onSubmit={handleLogin} className="space-y-4">
+                        <div>
+                            <label className="block text-gray-700 text-sm font-bold mb-2" htmlFor="admin-password">
+                                Contraseña
+                            </label>
+                            <input
+                                id="admin-password"
+                                type="password"
+                                value={adminPassword}
+                                onChange={(e) => setAdminPassword(e.target.value)}
+                                className="shadow-sm appearance-none border rounded-lg w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:ring-2 focus:ring-blue-500 transition-shadow"
+                            />
+                        </div>
+                        {loginError && <p className="text-red-500 text-sm italic">{loginError}</p>}
+                        <div className="flex items-center justify-center">
+                            <button
+                                type="submit"
+                                className="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded-lg focus:outline-none focus:shadow-outline transition duration-150 ease-in-out"
+                            >
+                                Entrar
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        );
+    }
+    
+    return (
+        <div className="container mx-auto px-4 py-8">
+            <h1 className="text-4xl font-extrabold text-center text-gray-800 mb-8">Panel de Administración</h1>
+            <div className="flex justify-center mb-8 space-x-4">
+                <button
+                    onClick={() => {
+                        setAdminPanelPage('create');
+                        setEditingItem(null);
+                        setEditingType(null);
+                    }}
+                    className={`font-semibold px-6 py-2 rounded-lg transition-colors ${adminPanelPage === 'create' ? 'bg-blue-600 text-white' : 'bg-gray-200 text-gray-700 hover:bg-gray-300'}`}
+                >
+                    Crear Contenido
+                </button>
+                <button
+                    onClick={() => {
+                        setAdminPanelPage('manage');
+                        setEditingItem(null);
+                        setEditingType(null);
+                    }}
+                    className={`font-semibold px-6 py-2 rounded-lg transition-colors ${adminPanelPage === 'manage' ? 'bg-blue-600 text-white' : 'bg-gray-200 text-gray-700 hover:bg-gray-300'}`}
+                >
+                    Gestionar Contenido
+                </button>
+            </div>
+            {adminPanelPage === 'create' ? <CreateContent onSavePost={onSavePost} onSaveProduct={onSaveProduct} editingItem={editingItem} editingType={editingType} setEditingItem={setEditingItem} setEditingType={setEditingType} /> : <ManageContent posts={posts} products={products} onDeletePost={handleDeletePost} onDeleteProduct={handleDeleteProduct} onEditPost={onEditPost} onEditProduct={onEditProduct} />}
+        </div>
+    );
+};
+
+const PublicView = ({ posts, products, handleNavigation }) => {
+    const [searchTerm, setSearchTerm] = useState('');
+    const [filterType, setFilterType] = useState('all');
+    const [postsToShow, setPostsToShow] = useState(12);
+    const [showFilterModal, setShowFilterModal] = useState(false);
+    const [showFloatingButton, setShowFloatingButton] = useState(true);
+
+    const postSectionRef = useRef(null);
+    const productSectionRef = useRef(null);
+
+    // Posts filtrados basados en la búsqueda y el tipo
+    const filteredPosts = posts.filter(post => {
+        const matchesSearch = post.title.toLowerCase().includes(searchTerm.toLowerCase());
+        const matchesFilter = filterType === 'all' || post.type === filterType;
+        return matchesSearch && matchesFilter;
+    });
+
+    // Posts visibles en la página actual
+    const visiblePosts = filteredPosts.slice(0, postsToShow);
+
+    const handleLoadMore = () => {
+        setPostsToShow(prev => prev + 12);
+    };
+
+    const handleFilterChange = (type) => {
+        setFilterType(type);
+        setShowFilterModal(false); // Cierra el modal al seleccionar un filtro
+    };
+
+    const handleSearchChange = (e) => {
+        setSearchTerm(e.target.value);
+        // Opcional: podrías cerrar el modal aquí si lo deseas, pero es mejor dejarlo abierto
+        // para que el usuario pueda seguir escribiendo.
+    };
+
+    useEffect(() => {
+        const handleScroll = () => {
+            if (postSectionRef.current && productSectionRef.current) {
+                const postSectionTop = postSectionRef.current.offsetTop;
+                const productSectionTop = productSectionRef.current.offsetTop;
+                const scrollPosition = window.scrollY + window.innerHeight;
+                
+                // El botón flotante se muestra si la posición de scroll está
+                // dentro del rango de la sección de posts.
+                const isBetweenPostsAndProducts = scrollPosition > postSectionTop && scrollPosition < productSectionTop;
+                setShowFloatingButton(isBetweenPostsAndProducts);
+            }
+        };
+
+        window.addEventListener('scroll', handleScroll);
+        handleScroll(); // Llama a la función al cargar la página para la posición inicial
+
+        return () => {
+            window.removeEventListener('scroll', handleScroll);
+        };
+    }, [posts, products]);
+
+    return (
+        <div className="container mx-auto px-4 py-8">
+            {/* Botón flotante para filtros en móviles, visible solo si se cumplen las condiciones */}
+            {showFloatingButton && (
+                <button
+                    onClick={() => setShowFilterModal(true)}
+                    className="fixed bottom-4 right-4 z-40 md:hidden bg-blue-600 text-white p-3 rounded-full shadow-lg transition-transform transform hover:scale-110"
+                >
+                    <FilterIcon />
+                </button>
+            )}
+
+            {/* Banner de bienvenida con video de fondo */}
+            <div className="bg-white rounded-xl shadow-lg p-8 mb-12 flex flex-col md:flex-row items-center gap-8 relative overflow-hidden">
+                {/* Video de fondo */}
+                <video
+                    className="absolute inset-0 w-full h-full object-cover z-0"
+                    autoPlay
+                    loop
+                    muted
+                    playsInline
+                    src="https://firebasestorage.googleapis.com/v0/b/galo-2fb12.firebasestorage.app/o/V%C3%ADdeo%20sin%20t%C3%ADtulo%20%E2%80%90%20Hecho%20con%20Clipchamp.mp4?alt=media&token=04c22559-9592-41c8-9e14-82f26cd33de6"
+                ></video>
+                {/* Capa de superposición para que el texto sea legible */}
+                <div className="absolute inset-0 bg-black opacity-40 z-10"></div>
+                
+                {/* Contenido del banner */}
+                <div className="w-full md:w-1/2 z-20">
+                    <img src="https://firebasestorage.googleapis.com/v0/b/galo-2fb12.firebasestorage.app/o/que-hacer-en-yucatan.jpg?alt=media&token=3aa482d6-bee8-4e8b-b66e-7fb375623ad5" alt="Pirámide y avión en la península de Yucatán" className="w-full h-auto rounded-lg shadow-md" />
+                </div>
+                <div className="w-full md:w-1/2 text-center md:text-left z-20">
+                    <h2 className="text-4xl font-extrabold text-white mb-4">Descubre Mérida con nosotros</h2>
+                    <p className="text-white text-lg">
+                        Yucaguia es tu compañero de viaje perfecto para explorar la belleza y la cultura de Mérida. Aquí encontrarás recomendaciones de lugares imperdibles, consejos para moverte por la ciudad y productos esenciales para tu aventura. ¡Conéctate con tu próximo destino de manera única!
+                    </p>
+                </div>
+            </div>
+
+            <div className="flex flex-col md:flex-row gap-8">
+                {/* Barra lateral para búsqueda y filtros */}
+                <aside className={`fixed md:relative top-0 left-0 h-full w-full md:w-1/4 p-6 bg-white shadow-lg md:rounded-xl z-50 transform md:transform-none transition-transform duration-300 ease-in-out ${showFilterModal ? 'translate-x-0' : '-translate-x-full'} md:translate-x-0`}>
+                    <div className="flex justify-between items-center mb-4 md:hidden">
+                        <h3 className="text-2xl font-bold text-gray-800">Filtrar Posts</h3>
+                        <button onClick={() => setShowFilterModal(false)}>
+                            <XCircleIcon size={32} />
+                        </button>
+                    </div>
+                    <div className="space-y-4">
+                        <div>
+                            <label htmlFor="search" className="block text-sm font-medium text-gray-700 mb-2">Buscar por título</label>
+                            <div className="relative">
+                                <input
+                                    id="search"
+                                    type="text"
+                                    placeholder="Escribe para buscar..."
+                                    value={searchTerm}
+                                    onChange={handleSearchChange}
+                                    className="w-full rounded-lg border-gray-300 shadow-sm focus:border-blue-500 focus:ring focus:ring-blue-200 focus:ring-opacity-50 pl-10"
+                                />
+                                <SearchIcon className="absolute top-1/2 left-3 transform -translate-y-1/2 text-gray-400" />
+                            </div>
+                        </div>
+                        <div>
+                            <label className="block text-sm font-medium text-gray-700 mb-2">Tipo de lugar</label>
+                            <div className="space-y-2">
+                                <div className="flex items-center">
+                                    <input type="radio" id="all" name="filter-type" value="all" checked={filterType === 'all'} onChange={(e) => handleFilterChange(e.target.value)} className="focus:ring-blue-500 h-4 w-4 text-blue-600 border-gray-300" />
+                                    <label htmlFor="all" className="ml-2 block text-sm text-gray-900">Todos</label>
+                                </div>
+                                {postTypes.map(type => (
+                                    <div key={type} className="flex items-center">
+                                        <input type="radio" id={type} name="filter-type" value={type} checked={filterType === type} onChange={(e) => handleFilterChange(e.target.value)} className="focus:ring-blue-500 h-4 w-4 text-blue-600 border-gray-300" />
+                                        <label htmlFor={type} className="ml-2 block text-sm text-gray-900">{type}</label>
+                                    </div>
+                                ))}
+                            </div>
+                        </div>
+                    </div>
+                </aside>
+
+                {/* Posts del blog */}
+                <div className="w-full md:w-3/4" ref={postSectionRef}>
+                    {filteredPosts.length === 0 ? (
+                        <div className="text-center p-10 bg-white rounded-xl shadow-lg">
+                            <p className="text-gray-500 text-lg">No se encontraron posts con esos criterios de búsqueda.</p>
+                        </div>
+                    ) : (
+                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+                        {visiblePosts.map(post => (
+                            <div
+                                key={post.id}
+                                className="bg-white rounded-xl shadow-xl overflow-hidden transition-transform transform hover:scale-105 duration-300 cursor-pointer"
+                                onClick={() => handleNavigation('post', post)}
+                            >
+                                <div className="relative">
+                                    <img
+                                        src={(post.imageUrl) ? post.imageUrl : (post.galleryUrls && post.galleryUrls.length > 0) ? post.galleryUrls[0] : `https://placehold.co/600x400/FACC15/78350F?text=${encodeURIComponent(post.title)}`}
+                                        alt={post.title}
+                                        className="w-full h-36 object-cover"
+                                        onError={(e) => {
+                                            e.target.onerror = null;
+                                            e.target.src = `https://placehold.co/600x400/FACC15/78350F?text=${encodeURIComponent(post.title)}`;
+                                        }}
+                                    />
+                                    {((post.galleryUrls && post.galleryUrls.length > 0) || post.imageUrl) && (
+                                        <div className="absolute top-2 right-2 bg-black bg-opacity-50 text-white p-1 rounded-full text-xs flex items-center">
+                                            <ImageIcon className="mr-1" size={12} /> {((post.galleryUrls && post.galleryUrls.length > 0) ? post.galleryUrls.length : 0) + (post.imageUrl ? 1 : 0)}
+                                        </div>
+                                    )}
+                                </div>
+                                <div className="p-4">
+                                    <h3 className="text-xl font-bold text-gray-900 mb-2">{post.title}</h3>
+                                    <p className="text-base text-gray-600">{post.content.substring(0, 100)}...</p>
+                                </div>
+                            </div>
+                        ))}
+                        </div>
+                    )}
+                    {filteredPosts.length > postsToShow && (
+                        <div className="mt-8 text-center">
+                            <button
+                                onClick={handleLoadMore}
+                                className="bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded-lg transition duration-150 ease-in-out"
+                            >
+                                Cargar más posts
+                            </button>
+                        </div>
+                    )}
+                </div>
+            </div>
+
+            <div className="my-12">
+                <AdSenseAd />
+            </div>
+
+            <div ref={productSectionRef}>
+                <h2 className="text-4xl font-extrabold mb-8 text-gray-800 text-center">Artículos Útiles para tu Viaje</h2>
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+                    {products.map(product => (
+                        <a
+                            key={product.id}
+                            href={product.link}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="bg-white rounded-xl shadow-lg overflow-hidden transition-transform transform hover:scale-105 duration-300 flex flex-col justify-between p-4"
+                        >
+                            <img
+                                src={product.imageUrl || `https://placehold.co/400x300/EF4444/FFFFFF?text=${encodeURIComponent(product.name)}`}
+                                alt={product.name}
+                                className="w-full h-40 object-contain mb-4"
+                                onError={(e) => {
+                                    e.target.onerror = null;
+                                    e.target.src = `https://placehold.co/400x300/EF4444/FFFFFF?text=${encodeURIComponent(product.name)}`;
+                                }}
+                            />
+                            <div className="flex-1">
+                                <h3 className="text-lg font-semibold text-gray-900 mb-2">{product.name}</h3>
+                                <p className="text-sm text-gray-600 mb-4">{product.description}</p>
+                            </div>
+                            <button className="bg-red-500 text-white py-2 px-4 rounded-full font-bold text-sm hover:bg-red-600 transition duration-150 ease-in-out">
+                                Comprar en Mercado Libre
+                            </button>
+                        </a>
+                    ))}
+                </div>
+            </div>
+        </div>
+    );
+};
+
+const PostDetailView = ({ handleNavigation, selectedPost, setCarouselImages, setCarouselIndex, setShowCarousel }) => {
+    if (!selectedPost) {
+        return (
+            <div className="container mx-auto px-4 py-12 text-center text-gray-600">
+                <p>Post no encontrado.</p>
+                <button
+                    onClick={() => handleNavigation('home')}
+                    className="mt-4 bg-red-500 hover:bg-red-600 text-white font-bold py-2 px-4 rounded-lg transition duration-150 ease-in-out"
+                >
+                    Volver al Inicio
+                </button>
+            </div>
+        );
+    }
+
+    const handleImageClick = (index) => {
+        const allImages = [
+            selectedPost.imageUrl,
+            ...(selectedPost.galleryUrls || [])
+        ].filter(Boolean); // Filtra valores nulos o indefinidos
+        setCarouselImages(allImages);
+        setCarouselIndex(index);
+        setShowCarousel(true);
+    };
+
+    return (
+        <div className="container mx-auto px-4 py-8 max-w-4xl">
+            <button
+                onClick={() => handleNavigation('home')}
+                className="flex items-center mb-6 text-red-600 hover:text-red-800 font-semibold transition duration-150 ease-in-out"
+            >
+                <ArrowLeftIcon size={24} className="mr-2" />
+                Volver a todos los posts
+            </button>
+            <div className="bg-white rounded-xl shadow-xl p-8">
+                {/* Imagen principal del post */}
+                <img
+                    src={(selectedPost.imageUrl) ? selectedPost.imageUrl : (selectedPost.galleryUrls && selectedPost.galleryUrls.length > 0) ? selectedPost.galleryUrls[0] : `https://placehold.co/800x600/FACC15/78350F?text=${encodeURIComponent(selectedPost.title)}`}
+                    alt={selectedPost.title}
+                    className="w-full h-96 object-cover rounded-lg mb-6 cursor-pointer"
+                    onError={(e) => {
+                        e.target.onerror = null;
+                        e.target.src = `https://placehold.co/800x600/FACC15/78350F?text=${encodeURIComponent(selectedPost.title)}`;
+                    }}
+                    onClick={() => handleImageClick(0)}
+                />
+
+                {/* Galería de miniaturas */}
+                {selectedPost.galleryUrls && selectedPost.galleryUrls.length > 0 && (
+                    <div className="mb-6 grid grid-cols-4 gap-2">
+                        {selectedPost.galleryUrls.map((url, index) => (
+                            <img
+                                key={index}
+                                src={url}
+                                alt={`Miniatura ${index + 1}`}
+                                className="w-full h-20 object-cover rounded-lg cursor-pointer hover:opacity-75 transition-opacity"
+                                onClick={() => handleImageClick(index + (selectedPost.imageUrl ? 1 : 0))}
+                            />
+                        ))}
+                    </div>
+                )}
+
+                <h1 className="text-4xl md:text-5xl font-extrabold text-gray-900 mb-4">{selectedPost.title}</h1>
+                {selectedPost.type && (
+                    <span className="inline-flex items-center px-3 py-1 text-sm font-medium text-red-800 bg-red-100 rounded-full mb-4">
+                        {selectedPost.type}
+                    </span>
+                )}
+                <p className="text-lg text-gray-600 mb-8">{selectedPost.content}</p>
+            </div>
+        </div>
+    );
+};
+
+const ConfirmationModal = ({ isOpen, onConfirm, onCancel, message }) => {
+    if (!isOpen) return null;
+
+    return (
+        <div className="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full flex items-center justify-center z-50">
+            <div className="relative p-8 bg-white w-full max-w-md m-auto flex-col flex rounded-lg shadow-2xl">
+                <div className="text-center">
+                    <h3 className="text-xl font-bold text-gray-900 mb-4">¿Estás seguro?</h3>
+                    <p className="text-sm text-gray-500 mb-6">{message}</p>
+                </div>
+                <div className="flex justify-center space-x-4">
+                    <button
+                        onClick={onConfirm}
+                        className="bg-red-600 hover:bg-red-700 text-white font-bold py-2 px-4 rounded-lg transition duration-150 ease-in-out"
+                    >
+                        Sí, eliminar
+                    </button>
+                    <button
+                        onClick={onCancel}
+                        className="bg-gray-300 hover:bg-gray-400 text-gray-800 font-bold py-2 px-4 rounded-lg transition duration-150 ease-in-out"
+                    >
+                        Cancelar
+                    </button>
+                </div>
+            </div>
+        </div>
+    );
+};
+
 const App = () => {
     const [currentPage, setCurrentPage] = useState('home');
     const [posts, setPosts] = useState([]);
@@ -534,19 +1075,15 @@ const App = () => {
     const [user, setUser] = useState(null);
     const [loading, setLoading] = useState(true);
     const [message, setMessage] = useState({ type: '', text: '' });
-    const [selectedPost, setSelectedPost] = useState(null); // Ahora guarda el post completo
+    const [selectedPost, setSelectedPost] = useState(null);
     const [showConfirmModal, setShowConfirmModal] = useState(false);
     const [itemToDelete, setItemToDelete] = useState(null);
-    const [isAdmin, setIsAdmin] = useState(false);
-    
-    // Estado para el modal de "Renta un auto"
+
     const [showRentModal, setShowRentModal] = useState(false);
-    // Estado para el carrusel de imágenes
     const [showCarousel, setShowCarousel] = useState(false);
     const [carouselImages, setCarouselImages] = useState([]);
     const [carouselIndex, setCarouselIndex] = useState(0);
 
-    // Función para manejar el historial de navegación
     const handleNavigation = (page, post = null) => {
         setCurrentPage(page);
         setSelectedPost(post);
@@ -554,7 +1091,6 @@ const App = () => {
     };
 
     useEffect(() => {
-        // Manejar el botón de retroceso del navegador
         const handlePopState = (event) => {
             const { page, postId } = event.state || { page: 'home', postId: null };
             setCurrentPage(page);
@@ -562,10 +1098,8 @@ const App = () => {
         };
         window.addEventListener('popstate', handlePopState);
         
-        // Carga inicial al iniciar la aplicación
         if (window.location.hash) {
             // Manejar un caso en el que la página se cargue con un hash (por ejemplo, #post-id)
-            // aunque en este código no se usa, es buena práctica
         } else {
             window.history.replaceState({ page: 'home', postId: null }, '');
         }
@@ -598,7 +1132,6 @@ const App = () => {
             setPosts(fetchedPosts);
         }, (error) => {
             console.error("Error al escuchar los posts:", error);
-            // No mostrar un mensaje al usuario para evitar interrupciones al cargar la página
         });
     
         const productsCollectionRef = collection(db, `/artifacts/${appId}/public/data/products`);
@@ -610,7 +1143,6 @@ const App = () => {
             setProducts(fetchedProducts);
         }, (error) => {
             console.error("Error al escuchar los productos:", error);
-            // No mostrar un mensaje al usuario para evitar interrupciones al cargar la página
         });
     
         return () => {
@@ -621,7 +1153,6 @@ const App = () => {
         };
     }, []);
 
-    // Función para mostrar mensajes de éxito o error
     const showMessage = (type, text) => {
         setMessage({ type, text });
         setTimeout(() => {
@@ -629,7 +1160,6 @@ const App = () => {
         }, 5000);
     };
     
-    // Función mejorada para subir múltiples archivos
     const uploadFiles = async (files, folderPath) => {
         const uploadPromises = files.map(file => {
             const fileId = uuidv4();
@@ -670,8 +1200,8 @@ const App = () => {
             await setDoc(newPostRef, {
                 title,
                 content,
-                imageUrl, // Campo de imagen de portada
-                galleryUrls, // Campo para las imágenes de la galería
+                imageUrl,
+                galleryUrls,
                 type,
                 createdAt: new Date().toISOString()
             });
@@ -723,25 +1253,72 @@ const App = () => {
         }
     };
     
-    const handleConfirmDelete = async () => {
-        setShowConfirmModal(false);
-        if (!itemToDelete) return;
+    const handleDeletePost = async (postId) => {
+        setShowConfirmModal(true);
+        setItemToDelete({ type: 'post', id: postId });
+    };
+    
+    const handleAddProduct = async (newProductData) => {
+        const { name, link, imageFile, description } = newProductData;
+    
+        if (!name || !link || !imageFile || !description) {
+            showMessage('error', 'Por favor, rellena todos los campos del producto.');
+            return;
+        }
     
         try {
-            if (itemToDelete.type === 'post') {
-                const postRef = doc(db, `/artifacts/${appId}/public/data/posts`, itemToDelete.id);
-                await deleteDoc(postRef);
-                showMessage('success', '¡Post eliminado con éxito!');
-            } else if (itemToDelete.type === 'product') {
-                const productRef = doc(db, `/artifacts/${appId}/public/data/products`, itemToDelete.id);
-                await deleteDoc(productRef);
-                showMessage('success', '¡Producto eliminado con éxito!');
+            if (!auth.currentUser) {
+                throw new Error("Usuario no autenticado para agregar un producto.");
             }
+            const productId = uuidv4();
+            const imagePath = `products/${productId}/image_${imageFile.name}`;
+            await uploadBytes(ref(storage, imagePath), imageFile);
+            const imageUrl = await getDownloadURL(ref(storage, imagePath));
+    
+            const newProductRef = doc(db, `/artifacts/${appId}/public/data/products`, productId);
+            await setDoc(newProductRef, {
+                name,
+                link,
+                imageUrl,
+                description
+            });
+            showMessage('success', '¡Producto agregado con éxito!');
         } catch (error) {
-            console.error("Error al eliminar el elemento:", error);
-            showMessage('error', `Error al eliminar el elemento: ${error.message}`);
-        } finally {
-            setItemToDelete(null);
+            console.error("Error al agregar el producto:", error);
+            showMessage('error', `Error al agregar el producto: ${error.message}`);
+        }
+    };
+    
+    const handleEditProduct = async (updatedProductData, editingItem) => {
+        const { name, link, imageFile, imageUrl, description } = updatedProductData;
+    
+        if (!name || !description || (!imageUrl && !imageFile)) {
+            showMessage('error', 'Por favor, rellena todos los campos del producto.');
+            return;
+        }
+    
+        try {
+            if (!auth.currentUser) {
+                throw new Error("Usuario no autenticado para editar un producto.");
+            }
+            let finalImageUrl = imageUrl;
+            if (imageFile) {
+                const imagePath = `products/${editingItem.id}/image_${imageFile.name}`;
+                await uploadBytes(ref(storage, imagePath), imageFile);
+                finalImageUrl = await getDownloadURL(ref(storage, imagePath));
+            }
+    
+            const productRef = doc(db, `/artifacts/${appId}/public/data/products`, editingItem.id);
+            await updateDoc(productRef, {
+                name,
+                link,
+                imageUrl: finalImageUrl,
+                description
+            });
+            showMessage('success', '¡Producto actualizado con éxito!');
+        } catch (error) {
+            console.error("Error al editar el producto:", error);
+            showMessage('error', `Error al editar el producto: ${error.message}`);
         }
     };
     
@@ -749,7 +1326,29 @@ const App = () => {
         setShowConfirmModal(true);
         setItemToDelete({ type: 'product', id: productId });
     };
-    
+
+    const handleConfirmDelete = async () => {
+        if (!itemToDelete) return;
+        
+        try {
+            if (itemToDelete.type === 'post') {
+                const postRef = doc(db, `/artifacts/${appId}/public/data/posts`, itemToDelete.id);
+                await deleteFirestoreDoc(postRef);
+                showMessage('success', '¡Post eliminado con éxito!');
+            } else if (itemToDelete.type === 'product') {
+                const productRef = doc(db, `/artifacts/${appId}/public/data/products`, itemToDelete.id);
+                await deleteFirestoreDoc(productRef);
+                showMessage('success', '¡Producto eliminado con éxito!');
+            }
+        } catch (error) {
+            console.error("Error al eliminar el elemento:", error);
+            showMessage('error', `Error al eliminar el elemento: ${error.message}`);
+        } finally {
+            setShowConfirmModal(false);
+            setItemToDelete(null);
+        }
+    };
+
     if (loading) {
         return (
             <div className="flex items-center justify-center min-h-screen bg-slate-100">
@@ -757,548 +1356,17 @@ const App = () => {
             </div>
         );
     }
-    
-    // Componente del panel de administrador
-    const AdminPanel = () => {
-        const hardcodedAdminPassword = '123456';
-        const [adminPassword, setAdminPassword] = useState('');
-        const [loginError, setLoginError] = useState('');
-        const [adminPanelPage, setAdminPanelPage] = useState('create');
-        const [editingItem, setEditingItem] = useState(null);
-        const [editingType, setEditingType] = useState(null);
-        
-        const handleLogin = (e) => {
-            e.preventDefault();
-            if (adminPassword === hardcodedAdminPassword) {
-                setIsAdmin(true);
-                setLoginError('');
-            } else {
-                setLoginError('Contraseña incorrecta');
-            }
-            setAdminPassword('');
-        };
-        
-        const onSavePost = async (data) => {
-            if (editingItem) {
-                await handleEditPost(data, editingItem);
-                setEditingItem(null);
-                setEditingType(null);
-            } else {
-                await handleAddPost(data);
-            }
-        };
-    
-        const onSaveProduct = async (data) => {
-            if (editingItem) {
-                await handleEditProduct(data, editingItem);
-                setEditingItem(null);
-                setEditingType(null);
-            } else {
-                await handleAddProduct(data);
-            }
-        };
-        
-        if (!isAdmin) {
-            return (
-                <div className="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full flex items-center justify-center z-50">
-                    <div className="bg-white p-8 rounded-lg shadow-2xl max-w-sm w-full relative">
-                        <h2 className="text-3xl font-bold mb-6 text-center text-gray-800">Acceso de Administrador</h2>
-                        <form onSubmit={handleLogin} className="space-y-4">
-                            <div>
-                                <label className="block text-gray-700 text-sm font-bold mb-2" htmlFor="admin-password">
-                                    Contraseña
-                                </label>
-                                <input
-                                    id="admin-password"
-                                    type="password"
-                                    value={adminPassword}
-                                    onChange={(e) => setAdminPassword(e.target.value)}
-                                    className="shadow-sm appearance-none border rounded-lg w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:ring-2 focus:ring-blue-500 transition-shadow"
-                                />
-                            </div>
-                            {loginError && <p className="text-red-500 text-sm italic">{loginError}</p>}
-                            <div className="flex items-center justify-center">
-                                <button
-                                    type="submit"
-                                    className="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded-lg focus:outline-none focus:shadow-outline transition duration-150 ease-in-out"
-                                >
-                                    Entrar
-                                </button>
-                            </div>
-                        </form>
-                    </div>
-                </div>
-            );
-        }
-        
-        const CreateContent = () => (
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-                {editingItem && editingType === 'post' ? (
-                    <PostForm 
-                        initialData={editingItem}
-                        onSave={onSavePost}
-                        onCancel={() => { setEditingItem(null); setEditingType(null); }}
-                        buttonText="Actualizar Post"
-                    />
-                ) : (
-                    <PostForm
-                        onSave={onSavePost}
-                        onCancel={null}
-                        buttonText="Publicar Post"
-                    />
-                )}
-                {editingItem && editingType === 'product' ? (
-                    <ProductForm
-                        initialData={editingItem}
-                        onSave={onSaveProduct}
-                        onCancel={() => { setEditingItem(null); setEditingType(null); }}
-                        buttonText="Actualizar Producto"
-                    />
-                ) : (
-                    <ProductForm
-                        onSave={onSaveProduct}
-                        onCancel={null}
-                        buttonText="Agregar Producto"
-                    />
-                )}
-            </div>
-        );
-        
-        const ManageContent = () => (
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-                <div className="bg-white p-6 rounded-xl shadow-lg">
-                    <h2 className="text-3xl font-bold mb-6 text-blue-500">Gestionar Posts</h2>
-                    <div className="space-y-4">
-                        {posts.length === 0 ? (
-                            <p className="text-gray-500">No hay posts creados.</p>
-                        ) : (
-                            posts.map(post => (
-                                <div key={post.id} className="p-4 border-b border-gray-200 flex justify-between items-center hover:bg-blue-50 transition-colors duration-150 ease-in-out">
-                                    <span className="text-gray-700 font-semibold">{post.title}</span>
-                                    <div className="flex space-x-2">
-                                        <button
-                                            onClick={() => { setEditingItem(post); setEditingType('post'); setAdminPanelPage('create'); }}
-                                            className="bg-blue-500 hover:bg-blue-600 text-white p-2 rounded-lg transition-colors"
-                                            title="Editar"
-                                        >
-                                            <PencilIcon />
-                                        </button>
-                                        <button
-                                            onClick={() => handleDeletePost(post.id)}
-                                            className="bg-red-500 hover:bg-red-600 text-white p-2 rounded-lg transition-colors"
-                                            title="Eliminar"
-                                        >
-                                            <TrashIcon />
-                                        </button>
-                                    </div>
-                                </div>
-                            ))
-                        )}
-                    </div>
-                </div>
-                <div className="bg-white p-6 rounded-xl shadow-lg">
-                    <h2 className="text-3xl font-bold mb-6 text-red-500">Gestionar Productos</h2>
-                    <div className="space-y-4">
-                        {products.length === 0 ? (
-                            <p className="text-gray-500">No hay productos creados.</p>
-                        ) : (
-                            products.map(product => (
-                                <div key={product.id} className="p-4 border-b border-gray-200 flex justify-between items-center hover:bg-red-50 transition-colors duration-150 ease-in-out">
-                                    <span className="text-gray-700 font-semibold">{product.name}</span>
-                                    <div className="flex space-x-2">
-                                        <button
-                                            onClick={() => { setEditingItem(product); setEditingType('product'); setAdminPanelPage('create'); }}
-                                            className="bg-red-500 hover:bg-red-600 text-white p-2 rounded-lg transition-colors"
-                                            title="Editar"
-                                        >
-                                            <PencilIcon />
-                                        </button>
-                                        <button
-                                            onClick={() => handleDeleteProduct(product.id)}
-                                            className="bg-red-500 hover:bg-red-600 text-white p-2 rounded-lg transition-colors"
-                                            title="Eliminar"
-                                        >
-                                            <TrashIcon />
-                                        </button>
-                                    </div>
-                                </div>
-                            ))
-                        )}
-                    </div>
-                </div>
-            </div>
-        );
-        
-        return (
-            <div className="container mx-auto px-4 py-8">
-                <h1 className="text-4xl font-extrabold text-center text-gray-800 mb-8">Panel de Administración</h1>
-                <div className="flex justify-center mb-8 space-x-4">
-                    <button
-                        onClick={() => {
-                            setAdminPanelPage('create');
-                            setEditingItem(null);
-                            setEditingType(null);
-                        }}
-                        className={`font-semibold px-6 py-2 rounded-lg transition-colors ${adminPanelPage === 'create' ? 'bg-blue-600 text-white' : 'bg-gray-200 text-gray-700 hover:bg-gray-300'}`}
-                    >
-                        Crear Contenido
-                    </button>
-                    <button
-                        onClick={() => {
-                            setAdminPanelPage('manage');
-                            setEditingItem(null);
-                            setEditingType(null);
-                        }}
-                        className={`font-semibold px-6 py-2 rounded-lg transition-colors ${adminPanelPage === 'manage' ? 'bg-blue-600 text-white' : 'bg-gray-200 text-gray-700 hover:bg-gray-300'}`}
-                    >
-                        Gestionar Contenido
-                    </button>
-                </div>
-                {adminPanelPage === 'create' ? <CreateContent /> : <ManageContent />}
-            </div>
-        );
-    };
-    
-    const PublicView = () => {
-        const [searchTerm, setSearchTerm] = useState('');
-        const [filterType, setFilterType] = useState('all');
-        const [postsToShow, setPostsToShow] = useState(12);
-        const [showFilterModal, setShowFilterModal] = useState(false);
-        const [showFloatingButton, setShowFloatingButton] = useState(true);
 
-        const postSectionRef = useRef(null);
-        const productSectionRef = useRef(null);
-
-        // Posts filtrados basados en la búsqueda y el tipo
-        const filteredPosts = posts.filter(post => {
-            const matchesSearch = post.title.toLowerCase().includes(searchTerm.toLowerCase());
-            const matchesFilter = filterType === 'all' || post.type === filterType;
-            return matchesSearch && matchesFilter;
-        });
-
-        // Posts visibles en la página actual
-        const visiblePosts = filteredPosts.slice(0, postsToShow);
-
-        const handleLoadMore = () => {
-            setPostsToShow(prev => prev + 12);
-        };
-
-        const handleFilterChange = (type) => {
-            setFilterType(type);
-            setShowFilterModal(false); // Cierra el modal al seleccionar un filtro
-        };
-
-        const handleSearchChange = (e) => {
-            setSearchTerm(e.target.value);
-            // Opcional: podrías cerrar el modal aquí si lo deseas, pero es mejor dejarlo abierto
-            // para que el usuario pueda seguir escribiendo.
-        };
-
-        useEffect(() => {
-            const handleScroll = () => {
-                if (postSectionRef.current && productSectionRef.current) {
-                    const postSectionTop = postSectionRef.current.offsetTop;
-                    const productSectionTop = productSectionRef.current.offsetTop;
-                    const scrollPosition = window.scrollY + window.innerHeight;
-                    
-                    // El botón flotante se muestra si la posición de scroll está
-                    // dentro del rango de la sección de posts.
-                    const isBetweenPostsAndProducts = scrollPosition > postSectionTop && scrollPosition < productSectionTop;
-                    setShowFloatingButton(isBetweenPostsAndProducts);
-                }
-            };
-
-            window.addEventListener('scroll', handleScroll);
-            handleScroll(); // Llama a la función al cargar la página para la posición inicial
-
-            return () => {
-                window.removeEventListener('scroll', handleScroll);
-            };
-        }, [posts, products]);
-    
-        return (
-            <div className="container mx-auto px-4 py-8">
-                {/* Botón flotante para filtros en móviles, visible solo si se cumplen las condiciones */}
-                {currentPage === 'home' && showFloatingButton && (
-                    <button
-                        onClick={() => setShowFilterModal(true)}
-                        className="fixed bottom-4 right-4 z-40 md:hidden bg-blue-600 text-white p-3 rounded-full shadow-lg transition-transform transform hover:scale-110"
-                    >
-                        <FilterIcon />
-                    </button>
-                )}
-
-                {/* Banner de bienvenida con video de fondo */}
-                <div className="bg-white rounded-xl shadow-lg p-8 mb-12 flex flex-col md:flex-row items-center gap-8 relative overflow-hidden">
-                    {/* Video de fondo */}
-                    <video
-                        className="absolute inset-0 w-full h-full object-cover z-0"
-                        autoPlay
-                        loop
-                        muted
-                        playsInline
-                        src="https://firebasestorage.googleapis.com/v0/b/galo-2fb12.firebasestorage.app/o/V%C3%ADdeo%20sin%20t%C3%ADtulo%20%E2%80%90%20Hecho%20con%20Clipchamp.mp4?alt=media&token=04c22559-9592-41c8-9e14-82f26cd33de6"
-                    ></video>
-                    {/* Capa de superposición para que el texto sea legible */}
-                    <div className="absolute inset-0 bg-black opacity-40 z-10"></div>
-                    
-                    {/* Contenido del banner */}
-                    <div className="w-full md:w-1/2 z-20">
-                        <img src="https://firebasestorage.googleapis.com/v0/b/galo-2fb12.firebasestorage.app/o/que-hacer-en-yucatan.jpg?alt=media&token=3aa482d6-bee8-4e8b-b66e-7fb375623ad5" alt="Pirámide y avión en la península de Yucatán" className="w-full h-auto rounded-lg shadow-md" />
-                    </div>
-                    <div className="w-full md:w-1/2 text-center md:text-left z-20">
-                        <h2 className="text-4xl font-extrabold text-white mb-4">Descubre Mérida con nosotros</h2>
-                        <p className="text-white text-lg">
-                            Yucaguia es tu compañero de viaje perfecto para explorar la belleza y la cultura de Mérida. Aquí encontrarás recomendaciones de lugares imperdibles, consejos para moverte por la ciudad y productos esenciales para tu aventura. ¡Conéctate con tu próximo destino de manera única!
-                        </p>
-                    </div>
-                </div>
-    
-                <div className="flex flex-col md:flex-row gap-8">
-                    {/* Barra lateral para búsqueda y filtros */}
-                    <aside className={`fixed md:relative top-0 left-0 h-full w-full md:w-1/4 p-6 bg-white shadow-lg md:rounded-xl z-50 transform md:transform-none transition-transform duration-300 ease-in-out ${showFilterModal ? 'translate-x-0' : '-translate-x-full'} md:translate-x-0`}>
-                        <div className="flex justify-between items-center mb-4 md:hidden">
-                            <h3 className="text-2xl font-bold text-gray-800">Filtrar Posts</h3>
-                            <button onClick={() => setShowFilterModal(false)}>
-                                <XCircleIcon size={32} />
-                            </button>
-                        </div>
-                        <div className="space-y-4">
-                            <div>
-                                <label htmlFor="search" className="block text-sm font-medium text-gray-700 mb-2">Buscar por título</label>
-                                <div className="relative">
-                                    <input
-                                        id="search"
-                                        type="text"
-                                        placeholder="Escribe para buscar..."
-                                        value={searchTerm}
-                                        onChange={handleSearchChange}
-                                        className="w-full rounded-lg border-gray-300 shadow-sm focus:border-blue-500 focus:ring focus:ring-blue-200 focus:ring-opacity-50 pl-10"
-                                    />
-                                    <SearchIcon className="absolute top-1/2 left-3 transform -translate-y-1/2 text-gray-400" />
-                                </div>
-                            </div>
-                            <div>
-                                <label className="block text-sm font-medium text-gray-700 mb-2">Tipo de lugar</label>
-                                <div className="space-y-2">
-                                    <div className="flex items-center">
-                                        <input type="radio" id="all" name="filter-type" value="all" checked={filterType === 'all'} onChange={(e) => handleFilterChange(e.target.value)} className="focus:ring-blue-500 h-4 w-4 text-blue-600 border-gray-300" />
-                                        <label htmlFor="all" className="ml-2 block text-sm text-gray-900">Todos</label>
-                                    </div>
-                                    {postTypes.map(type => (
-                                        <div key={type} className="flex items-center">
-                                            <input type="radio" id={type} name="filter-type" value={type} checked={filterType === type} onChange={(e) => handleFilterChange(e.target.value)} className="focus:ring-blue-500 h-4 w-4 text-blue-600 border-gray-300" />
-                                            <label htmlFor={type} className="ml-2 block text-sm text-gray-900">{type}</label>
-                                        </div>
-                                    ))}
-                                </div>
-                            </div>
-                        </div>
-                    </aside>
-    
-                    {/* Posts del blog */}
-                    <div className="w-full md:w-3/4" ref={postSectionRef}>
-                        {filteredPosts.length === 0 ? (
-                            <div className="text-center p-10 bg-white rounded-xl shadow-lg">
-                                <p className="text-gray-500 text-lg">No se encontraron posts con esos criterios de búsqueda.</p>
-                            </div>
-                        ) : (
-                            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-                            {visiblePosts.map(post => (
-                                <div
-                                    key={post.id}
-                                    className="bg-white rounded-xl shadow-xl overflow-hidden transition-transform transform hover:scale-105 duration-300 cursor-pointer"
-                                    onClick={() => handleNavigation('post', post)}
-                                >
-                                    <div className="relative">
-                                        <img
-                                            src={(post.imageUrl) ? post.imageUrl : (post.galleryUrls && post.galleryUrls.length > 0) ? post.galleryUrls[0] : `https://placehold.co/600x400/FACC15/78350F?text=${encodeURIComponent(post.title)}`}
-                                            alt={post.title}
-                                            className="w-full h-36 object-cover"
-                                            onError={(e) => {
-                                                e.target.onerror = null;
-                                                e.target.src = `https://placehold.co/600x400/FACC15/78350F?text=${encodeURIComponent(post.title)}`;
-                                            }}
-                                        />
-                                        {((post.galleryUrls && post.galleryUrls.length > 0) || post.imageUrl) && (
-                                            <div className="absolute top-2 right-2 bg-black bg-opacity-50 text-white p-1 rounded-full text-xs flex items-center">
-                                                <ImageIcon className="mr-1" size={12} /> {((post.galleryUrls && post.galleryUrls.length > 0) ? post.galleryUrls.length : 0) + (post.imageUrl ? 1 : 0)}
-                                            </div>
-                                        )}
-                                    </div>
-                                    <div className="p-4">
-                                        <h3 className="text-xl font-bold text-gray-900 mb-2">{post.title}</h3>
-                                        <p className="text-base text-gray-600">{post.content.substring(0, 100)}...</p>
-                                    </div>
-                                </div>
-                            ))}
-                            </div>
-                        )}
-                        {filteredPosts.length > postsToShow && (
-                            <div className="mt-8 text-center">
-                                <button
-                                    onClick={handleLoadMore}
-                                    className="bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded-lg transition duration-150 ease-in-out"
-                                >
-                                    Cargar más posts
-                                </button>
-                            </div>
-                        )}
-                    </div>
-                </div>
-    
-                <div className="my-12">
-                    <AdSenseAd />
-                </div>
-    
-                <div ref={productSectionRef}>
-                    <h2 className="text-4xl font-extrabold mb-8 text-gray-800 text-center">Artículos Útiles para tu Viaje</h2>
-                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-                        {products.map(product => (
-                            <a
-                                key={product.id}
-                                href={product.link}
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                className="bg-white rounded-xl shadow-lg overflow-hidden transition-transform transform hover:scale-105 duration-300 flex flex-col justify-between p-4"
-                            >
-                                <img
-                                    src={product.imageUrl || `https://placehold.co/400x300/EF4444/FFFFFF?text=${encodeURIComponent(product.name)}`}
-                                    alt={product.name}
-                                    className="w-full h-40 object-contain mb-4"
-                                    onError={(e) => {
-                                        e.target.onerror = null;
-                                        e.target.src = `https://placehold.co/400x300/EF4444/FFFFFF?text=${encodeURIComponent(product.name)}`;
-                                    }}
-                                />
-                                <div className="flex-1">
-                                    <h3 className="text-lg font-semibold text-gray-900 mb-2">{product.name}</h3>
-                                    <p className="text-sm text-gray-600 mb-4">{product.description}</p>
-                                </div>
-                                <button className="bg-red-500 text-white py-2 px-4 rounded-full font-bold text-sm hover:bg-red-600 transition duration-150 ease-in-out">
-                                    Comprar en Mercado Libre
-                                </button>
-                            </a>
-                        ))}
-                    </div>
-                </div>
-            </div>
-        );
-    };
-    
-    const PostDetailView = () => {
-        if (!selectedPost) {
-            return (
-                <div className="container mx-auto px-4 py-12 text-center text-gray-600">
-                    <p>Post no encontrado.</p>
-                    <button
-                        onClick={() => handleNavigation('home')}
-                        className="mt-4 bg-red-500 hover:bg-red-600 text-white font-bold py-2 px-4 rounded-lg transition duration-150 ease-in-out"
-                    >
-                        Volver al Inicio
-                    </button>
-                </div>
-            );
-        }
-
-        const handleImageClick = (index) => {
-            const allImages = [
-                selectedPost.imageUrl,
-                ...(selectedPost.galleryUrls || [])
-            ].filter(Boolean); // Filtra valores nulos o indefinidos
-            setCarouselImages(allImages);
-            setCarouselIndex(index);
-            setShowCarousel(true);
-        };
-    
-        return (
-            <div className="container mx-auto px-4 py-8 max-w-4xl">
-                <button
-                    onClick={() => handleNavigation('home')}
-                    className="flex items-center mb-6 text-red-600 hover:text-red-800 font-semibold transition duration-150 ease-in-out"
-                >
-                    <ArrowLeftIcon size={24} className="mr-2" />
-                    Volver a todos los posts
-                </button>
-                <div className="bg-white rounded-xl shadow-xl p-8">
-                    {/* Imagen principal del post */}
-                    <img
-                        src={(selectedPost.imageUrl) ? selectedPost.imageUrl : (selectedPost.galleryUrls && selectedPost.galleryUrls.length > 0) ? selectedPost.galleryUrls[0] : `https://placehold.co/800x600/FACC15/78350F?text=${encodeURIComponent(selectedPost.title)}`}
-                        alt={selectedPost.title}
-                        className="w-full h-96 object-cover rounded-lg mb-6 cursor-pointer"
-                        onError={(e) => {
-                            e.target.onerror = null;
-                            e.target.src = `https://placehold.co/800x600/FACC15/78350F?text=${encodeURIComponent(selectedPost.title)}`;
-                        }}
-                        onClick={() => handleImageClick(0)}
-                    />
-
-                    {/* Galería de miniaturas */}
-                    {selectedPost.galleryUrls && selectedPost.galleryUrls.length > 0 && (
-                        <div className="mb-6 grid grid-cols-4 gap-2">
-                            {selectedPost.galleryUrls.map((url, index) => (
-                                <img
-                                    key={index}
-                                    src={url}
-                                    alt={`Miniatura ${index + 1}`}
-                                    className="w-full h-20 object-cover rounded-lg cursor-pointer hover:opacity-75 transition-opacity"
-                                    onClick={() => handleImageClick(index + (selectedPost.imageUrl ? 1 : 0))}
-                                />
-                            ))}
-                        </div>
-                    )}
-
-                    <h1 className="text-4xl md:text-5xl font-extrabold text-gray-900 mb-4">{selectedPost.title}</h1>
-                    {selectedPost.type && (
-                        <span className="inline-flex items-center px-3 py-1 text-sm font-medium text-red-800 bg-red-100 rounded-full mb-4">
-                            {selectedPost.type}
-                        </span>
-                    )}
-                    <p className="text-lg text-gray-600 mb-8">{selectedPost.content}</p>
-                </div>
-            </div>
-        );
-    };
-
-    const ConfirmationModal = ({ isOpen, onConfirm, onCancel, message }) => {
-        if (!isOpen) return null;
-    
-        return (
-            <div className="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full flex items-center justify-center z-50">
-                <div className="relative p-8 bg-white w-full max-w-md m-auto flex-col flex rounded-lg shadow-2xl">
-                    <div className="text-center">
-                        <h3 className="text-xl font-bold text-gray-900 mb-4">¿Estás seguro?</h3>
-                        <p className="text-sm text-gray-500 mb-6">{message}</p>
-                    </div>
-                    <div className="flex justify-center space-x-4">
-                        <button
-                            onClick={onConfirm}
-                            className="bg-red-600 hover:bg-red-700 text-white font-bold py-2 px-4 rounded-lg transition duration-150 ease-in-out"
-                        >
-                            Sí, eliminar
-                        </button>
-                        <button
-                            onClick={onCancel}
-                            className="bg-gray-300 hover:bg-gray-400 text-gray-800 font-bold py-2 px-4 rounded-lg transition duration-150 ease-in-out"
-                        >
-                            Cancelar
-                        </button>
-                    </div>
-                </div>
-            </div>
-        );
-    };
-    
     const renderContent = () => {
         switch (currentPage) {
             case 'home':
-                return <PublicView />;
+                return <PublicView posts={posts} products={products} handleNavigation={handleNavigation} />;
             case 'admin':
-                return <AdminPanel />;
+                return <AdminPanel posts={posts} products={products} handleAddPost={handleAddPost} handleEditPost={handleEditPost} handleDeletePost={handleDeletePost} handleAddProduct={handleAddProduct} handleEditProduct={handleEditProduct} handleDeleteProduct={handleDeleteProduct} />;
             case 'post':
-                return <PostDetailView />;
+                return <PostDetailView selectedPost={selectedPost} handleNavigation={handleNavigation} setCarouselImages={setCarouselImages} setCarouselIndex={setCarouselIndex} setShowCarousel={setShowCarousel} />;
             default:
-                return <PublicView />;
+                return <PublicView posts={posts} products={products} handleNavigation={handleNavigation} />;
         }
     };
     
