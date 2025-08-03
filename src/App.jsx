@@ -410,7 +410,7 @@ const ImageCarouselModal = ({ images, initialIndex, onClose }) => {
 };
 
 
-const RentCarModal = ({ isOpen, onClose }) => {
+const RentCarModal = ({ isOpen, onClose, showMessage }) => {
     // Estado para el formulario de contacto
     const [contactForm, setContactForm] = useState({
         name: '',
@@ -424,14 +424,28 @@ const RentCarModal = ({ isOpen, onClose }) => {
         setContactForm(prev => ({ ...prev, [name]: value }));
     };
 
-    const handleFormSubmit = (e) => {
+    const handleFormSubmit = async (e) => {
         e.preventDefault();
-        // Lógica para enviar el formulario.
-        // Por ahora, solo mostramos los datos en la consola y una alerta.
-        console.log("Datos del formulario enviados:", contactForm);
-        alert(`¡Mensaje enviado!\nNombre: ${contactForm.name}\nEmail: ${contactForm.email}\nTeléfono: ${contactForm.phone}\nComentario: ${contactForm.message}`);
-        setContactForm({ name: '', email: '', phone: '', message: '' }); // Limpiar formulario
-        onClose(); // Cerrar el modal
+        try {
+            const response = await fetch('/.netlify/functions/submit-form', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify(contactForm),
+            });
+            const result = await response.json();
+            if (response.ok) {
+                showMessage('success', result.message);
+                setContactForm({ name: '', email: '', phone: '', message: '' });
+                onClose();
+            } else {
+                showMessage('error', result.message);
+            }
+        } catch (error) {
+            console.error('Error al enviar el formulario:', error);
+            showMessage('error', 'Hubo un error al enviar tu mensaje. Inténtalo de nuevo.');
+        }
     };
     
     if (!isOpen) return null;
@@ -1430,6 +1444,7 @@ const App = () => {
                 <RentCarModal
                     isOpen={showRentModal}
                     onClose={() => setShowRentModal(false)}
+                    showMessage={showMessage} // Pasamos la función como prop
                 />
             )}
 
