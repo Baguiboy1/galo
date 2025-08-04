@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { initializeApp } from 'firebase/app';
 import { getAuth, signInWithCustomToken, signInAnonymously, onAuthStateChanged } from 'firebase/auth';
-import { getFirestore, collection, doc, setDoc, updateDoc, deleteDoc, onSnapshot, deleteDoc as deleteFirestoreDoc } from 'firebase/firestore';
+import { getFirestore, collection, doc, setDoc, updateDoc, onSnapshot, deleteDoc as deleteFirestoreDoc } from 'firebase/firestore';
 import { getStorage, ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 import { v4 as uuidv4 } from 'uuid';
 
@@ -148,6 +148,9 @@ const AdSenseAd = () => {
 const PostForm = ({ initialData, onSave, onCancel, buttonText }) => {
     // Estado para manejar la carga de archivos de imagen principal y de galería
     const [formData, setFormData] = useState(initialData || { title: '', content: '', imageFile: null, imageUrl: '', galleryFiles: [], galleryUrls: [], type: postTypes[0] });
+    
+    // Validar el formulario al cambiar los datos
+    const isFormValid = formData.title && formData.content && (formData.imageFile || formData.imageUrl || (formData.galleryFiles && formData.galleryFiles.length > 0) || (formData.galleryUrls && formData.galleryUrls.length > 0));
 
     useEffect(() => {
         setFormData(initialData || { title: '', content: '', imageFile: null, imageUrl: '', galleryFiles: [], galleryUrls: [], type: postTypes[0] });
@@ -171,8 +174,6 @@ const PostForm = ({ initialData, onSave, onCancel, buttonText }) => {
         e.preventDefault();
         onSave(formData);
     };
-
-    const isFormValid = formData.title && formData.content && (formData.imageFile || formData.imageUrl || (formData.galleryFiles && formData.galleryFiles.length > 0) || (formData.galleryUrls && formData.galleryUrls.length > 0));
 
     return (
         <div className="bg-white p-6 rounded-xl shadow-lg">
@@ -284,6 +285,7 @@ const ProductForm = ({ initialData, onSave, onCancel, buttonText }) => {
         onSave(formData);
     };
 
+    // La condición de validación ahora es correcta, pero el campo 'link' faltaba en el JSX.
     const isFormValid = formData.name && formData.link && (formData.imageFile || formData.imageUrl) && formData.description;
     
     return (
@@ -300,6 +302,19 @@ const ProductForm = ({ initialData, onSave, onCancel, buttonText }) => {
                         onChange={handleChange}
                         placeholder="Nombre del producto"
                         className={`shadow-sm appearance-none border rounded-lg w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:ring-2 focus:ring-red-500 transition-shadow ${!formData.name ? 'border-red-500' : 'border-gray-300'}`}
+                    />
+                </div>
+                {/* INSERCIÓN: Campo de 'link' que faltaba en el formulario */}
+                <div>
+                    <label className="block text-gray-700 text-sm font-bold mb-2" htmlFor="product-link">Enlace del Producto</label>
+                    <input
+                        id="product-link"
+                        name="link"
+                        type="url" // Usar tipo 'url' para una mejor validación en el navegador
+                        value={formData.link}
+                        onChange={handleChange}
+                        placeholder="https://mercadolibre.com/producto..."
+                        className={`shadow-sm appearance-none border rounded-lg w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:ring-2 focus:ring-red-500 transition-shadow ${!formData.link ? 'border-red-500' : 'border-gray-300'}`}
                     />
                 </div>
                 <div>
@@ -996,7 +1011,8 @@ const PostDetailView = ({ handleNavigation, selectedPost, setCarouselImages, set
                         {selectedPost.type}
                     </span>
                 )}
-                <p className="text-lg text-gray-600 mb-8">{selectedPost.content}</p>
+                {/* INSERCIÓN: Se ha añadido la clase 'whitespace-pre-wrap' para preservar los saltos de línea y espacios */}
+                <p className="text-lg text-gray-600 mb-8 whitespace-pre-wrap">{selectedPost.content}</p>
             </div>
         </div>
     );
@@ -1344,7 +1360,7 @@ const App = () => {
                 </div>
             )}
     
-            <nav className="bg-yellow-500 shadow-md sticky top-0 z-[60]">
+            <nav className="bg-gradient-to-r from-yellow-800 to-yellow-500 shadow-md sticky top-0 z-[60]">
                 <div className="container mx-auto px-4 py-4 flex flex-col md:flex-row justify-between items-center">
                     <div className="flex items-center space-x-3 cursor-pointer" onClick={() => handleNavigation('home')}>
                         <div>
@@ -1363,6 +1379,7 @@ const App = () => {
                             onClick={() => setShowRentModal(true)}
                             className="font-semibold px-4 py-2 rounded-lg transition duration-150 ease-in-out text-white bg-blue-600 shadow-lg"
                         >
+                            <CarSideIcon className="inline-block mr-2" />
                             Renta un auto
                         </button>
                         <button
